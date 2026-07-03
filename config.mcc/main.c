@@ -84,12 +84,7 @@ typedef struct {
 
 LineContext lines[TOTAL_MAX_LINES];
 
-// EEPROM保存(内線番号・初期ステート)設定
-// 注意: EEPROMの内容
-//  0x01 マジックナンバー
-//  0x02 内線番号1
-//  0x03 初期ステート1
-//  以降、偶数アドレスに内線番号、奇数アドレスにステート
+// EEPROM保存関連
 #define EEPROM_MAGIC_ADDR 0x01 // マジックナンバーの保存先
 #define EEPROM_MAGIC_VAL  0x5A // 適当な固定値（0xFFや0x00以外）
 #define EEPROM_CFG_START  0x02 // 内線番号データの開始アドレス
