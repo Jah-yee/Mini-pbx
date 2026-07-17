@@ -6,5 +6,8 @@
         "embedded-debug",
         "gdb",
         "mplab-core-da"
+    ],
+    "mplab.clangd.arguments": [
+        "--header-insertion=never"
     ]
 }
