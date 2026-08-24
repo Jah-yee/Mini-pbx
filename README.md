@@ -24,6 +24,15 @@ SLICモジュールの回線インタフェース側はデータシート通り�
 
 なお、ソースコードの作成には生成AI(Google Wrokspace版のGemini)を使用しています。
 
+## Update Info.
+
+元となっているPBXCoreのアップデートに伴い、Mini-PBXもアップデートを行いました。主な変更点は以下の通りです。
+- 設定保存の領域をEEPROMからプログラムメモリ(NVM)に変更しました。これに伴いXC8のC Compiler Optimizationで Address Qualifyを"Required"に設定してください。
+- 設定保存のための領域に関わるパラメータをhal_pbx.hに入れました。
+- 設定保存コマンドをSAVE_SETTINGSに変更しました。
+
+2回線PBXでは特に必要ない変更なのですが、main.c(PBXCore)を使いまわすための措置です。
+
 ## 簡単な回路説明
 
 回路図はルートにPDFで置いてあります。
@@ -140,30 +149,25 @@ Line1(Port1)とLine2(Port2)はデフォルトではそれぞれ内線11と12に�
 シリアルコンソール(UART)は9600bpsです。PBX側のTXは「PBXの送信」側です。USB-UART等のRXに繋ぎます。PBXのRX側も同様です。繋いで動作を見ると以下のように出ます。
 
 ```
-PBXCore: Starting
- Active LINES: 2
-PBXCore: Initializing Switchboard...1.2.3.done.
+PBXCore: Starting (1.3_NVM_Storage)
+PBXCore: Storage start address = 3fc0
+PBXCore: Storage size 64 words.
+PBXCore: Active LINES: 2
+PBXCore: Initializing Switchboard ..done.
 PBXCore: Testing Switchs.
- ON:1-1
- ON:1-2
- ON:2-1
- ON:2-2
- OFF:1-1
- OFF:1-2
- OFF:2-1
- OFF:2-2
+ ON:1-1 ON:2-1
+ OFF:1-1 OFF:2-1
 PBXCore: Switch test done.
 PBXCore: Reseting All States - done.
 PBXCore: Checking LINE modules
  Port  1- OK
  Port  2- OK
-PBXCore: Loading settings from EEPROM.
- Port  1 : Ext 11
+PBXCore: Loading settings from NVM.
+ Port  1 : Ext 21
  Port  2 : Ext 12
+PBXCore: Reset IP Unit.
 
 PBXCore: === PBX Ready ===
-
-PBX>
 ```
 この2回線PBXでは、メッセージのほとんどに意味がありません。スイッチのテストを行っていますが、2回線なので2つのSLICを直接、4066で接続しているだけです。なぜこのメッセージが出るのかというと、このPBX Coreプログラムは他のPBXと共通のものが使えるように作ってあるからです。なので、起動時メッセージはあまり気にしなくて大丈夫です。Port 1 - OKとかも気にしなくていいのですが、受話器外しをしている状態でPBX側を再起動するとPort 1- NGになり、回線使用不可の判定になります。回線使用不可になっても受話器を戻して上げ下げすると使用可に戻ります。
 
@@ -176,15 +180,19 @@ SET EXT : Set extension(number) for each port.
           Usage: SET EXT <port:1-2> <ext:10-99>
 SET AA  : Set port to AUTO ANSWER mode.
           Usage: SET AA  <port:1-2> <ON/OFF>
-SET HL  : Set port HOTLINE number
-          Usage: SET HL <port:1-2> <ext:10-99 or OFF>
+SET HL  : Set port HOTLINE number (up to 16 digits)
+          Usage: SET HL <port:1-2> <number or OFF>
+SET PFX : Set prefix for IP Dialing
+          Usage: SET PFX <0-9>
+SET TYPE: Set Port hardware type
+          Usage: SET TYPE <port> <SLIC/IP>
 SBCTL   : Manually ON/OFF/FULL_RESET Switchboard.
           Usage : SBCTL CON/REL <port1> <port2>
           Example: SBCTL CON 1 2   - Connect 1 and 2 Switch.
           Example: SBCTL REL 1 2   - Release 1 and 2 Switch.
           Example: SBCTL FULL_RESET  - Reset Switchboard.
 
-SAVE_TO_EEPROM : Save current settings to EEPROM.
+SAVE_SETTINGS  : Save current settings to NVM Storage.
 DO_FULL_RESET  : Reset PBXCore program.
 --------------
 ```
@@ -205,7 +213,7 @@ SET HL 1 22
 
 SBCTRLもこの構成ではほぼ意味を持ちません。そもそもスイッチボード(交換台)機能を搭載していないので、接続コマンドが来たら接続、開放コマンドが来たら開放するだけなので、どことどこを繋ぐという機能は意味を持たないからです。ボード上のTALK LEDをパカパカする程度になら使えるかもです。もともとこのコマンドはデバッグ用ですし。
 
-現在の設定情報をEEPROM(不揮発メモリ)に保存する場合にはSAVE_TO_EEPROMコマンドを実行します。EEPROMに保存された情報は電源を切っても保持されるので、内線番号を変更した場合等にはEEPROM保存を行っておきましょう。
+現在の設定情報をNVM(不揮発メモリ)に保存する場合にはSAVE_SETTINGSコマンドを実行します。NVMに保存された情報は電源を切っても保持されるので、内線番号を変更した場合等にはNVM保存を行っておきましょう。
 
 シリアルからリセットを実行する場合にはDO_FULL_RESETコマンドを実行してください。
 
